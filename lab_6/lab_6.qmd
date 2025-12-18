@@ -1,0 +1,223 @@
+---
+title: "pr 06 sokolov"
+author: "sokol46532@yandex.ru"
+format: 
+  md:
+    output-file: README.md
+---
+
+## Цель работы
+
+1. Закрепить навыки исследования данных журнала Windows Active Directory.
+2. Изучить структуру и содержимое журнала Windows Active Directory.
+3. Закрепить практические навыки использования языка программирования R для обработки данных.
+4. Отработать основные функции обработки данных экосистемы `tidyverse` языка R.
+
+## Исходные данные
+
+1. Операционная система: Windows 10
+2. IDE: RStudio
+3. R version 4.5.2
+4. Логи Windows Active Directory из SIEM.
+
+## Задание
+
+Используя программный пакет `dplyr` языка программирования R провести анализ журналов и ответить на вопросы.
+
+## Ход работы
+
+### Подготовка данных
+
+1. Импортировать данные в R (например, через `jsonlite::stream_in(file())`). Датасет расположен по адресу:
+   [https://storage.yandexcloud.net/iamcth-data/dataset.tar.gz](https://storage.yandexcloud.net/iamcth-data/dataset.tar.gz)
+2. Привести датасеты к виду “аккуратных данных” (tidy data), преобразовать типы столбцов в соответствии с их содержимым.
+3. Просмотреть общую структуру данных с помощью функции `glimpse()`.
+
+### Анализ данных
+
+1. Раскрыть датафрейм, избавившись от вложенных структур (для поиска вложенности использовать `dplyr::glimpse()`, для раскрытия — `tidyr::unnest()`). Чтобы не терять внешние имена колонок, использовать параметр `names_sep`.
+2. Минимизировать количество колонок: удалить признаки с единственным уникальным значением.
+3. Определить количество хостов, представленных в датасете.
+4. Подготовить датафрейм с расшифровкой Windows `Event_ID`, привести типы данных к типам их значений.
+5. Проверить, есть ли события с высоким и средним уровнем значимости, и посчитать их количество.
+
+---
+
+### Шаг 1. Подготовка данных
+
+```{r}
+knitr::opts_chunk$set(
+message = FALSE,
+warning = FALSE
+)
+
+suppressPackageStartupMessages({
+library(dplyr)
+library(tibble)
+library(stringr)
+library(tidyr)
+library(readr)
+library(knitr)
+library(jsonlite)
+library(purrr)
+})
+```
+Скачаем архив, распакуем его и загрузим JSON-файл с событиями:
+```{r}
+dataset_url <- "https://storage.yandexcloud.net/iamcth-data/dataset.tar.gz"
+temp_dir <- tempdir()
+tar_path <- file.path(temp_dir, "dataset.tar.gz")
+
+download.file(
+url = dataset_url,
+destfile = tar_path,
+mode = "wb",
+quiet = TRUE
+)
+
+untar(tarfile = tar_path, exdir = temp_dir)
+
+json_path <- file.path(
+temp_dir,
+"caldera_attack_evals_round1_day1_2019-10-20201108.json"
+)
+
+ad_data_raw <- jsonlite::stream_in(
+file(json_path, open = "r"),
+verbose = FALSE
+)
+
+ad_data_raw <- ad_data_raw %>%
+mutate(across(where(is.character), ~ na_if(.x, ""))) %>%
+mutate(across(where(is.logical), ~ as.integer(.x))) %>%
+type_convert()
+
+glimpse(ad_data_raw)
+```
+---
+
+### Шаг 2. Анализ
+
+#### 1. Раскрытие вложенных структур (unnest)
+
+Преобразуем вложенные объекты (списки/датафреймы) в плоскую таблицу. Для предотвращения потери “родительских” имён применяем `names_sep`.
+```{r}
+is_nested_structure <- function(x) {
+is.data.frame(x) || (is.list(x) && !is.null(x))
+}
+
+unnest_nested_columns <- function(df) {
+repeat {
+nested_cols <- names(df)[vapply(df, is_nested_structure, logical(1))]
+if (length(nested_cols) == 0) break
+for (col in nested_cols) {
+  df <- tidyr::unnest(
+    df,
+    cols = dplyr::all_of(col),
+    names_sep = paste0(col, "_"),
+    keep_empty = TRUE
+  )
+}
+
+}
+df
+}
+
+ad_data <- unnest_nested_columns(ad_data_raw)
+
+ad_data %>%
+select(
+`@timestamp`,
+winlogwinlog_computer_name,
+eventevent_code,
+eventevent_action,
+starts_with("winlogwinlog_event_data_")
+) %>%
+glimpse()
+
+ncol(ad_data)
+```
+#### 2. Удаление колонок с единственным значением
+
+Уберём признаки, которые содержат только одно уникальное значение (с учётом пропусков) — они не влияют на анализ и только “шумят” таблицу.
+```{r}
+ad_data <- ad_data %>%
+select(where(~ n_distinct(., na.rm = TRUE) > 1))
+
+ncol(ad_data)
+```
+#### 3. Количество хостов в датасете
+
+Посчитаем количество уникальных имён хостов (компьютеров), встречающихся в логах:
+```{r}
+host_count <- ad_data %>%
+summarise(hosts = n_distinct(winlogwinlog_computer_name, na.rm = TRUE))
+
+host_count
+```
+#### 4. Таблица расшифровки Windows Event_ID
+
+Сформируем справочную таблицу по событиям, встречающимся в наборе: `Event_ID` + “задача/действие”.
+```{r}
+win_events <- ad_data %>%
+select(eventevent_code, eventevent_action) %>%
+distinct() %>%
+rename(
+event_id = eventevent_code,
+task = eventevent_action
+) %>%
+type_convert()
+
+win_events
+```
+#### 5. События High/Medium значимости и их количество
+
+Подготовим справочник критичности (High / Medium / Low), присоединим его к событиям и выделим события, которые не относятся к Low.
+```{r}
+event_severity <- tribble(
+~event_id, ~severity,
+4618L, "High", 4649L, "High", 4719L, "High", 4765L, "High",
+4766L, "High", 4794L, "High", 4897L, "High", 4964L, "High",
+5124L, "High", 1102L, "Medium to High", 4621L, "Medium",
+4675L, "Medium", 4692L, "Medium", 4693L, "Medium", 4706L, "Medium",
+4713L, "Medium", 4714L, "Medium", 4715L, "Medium", 4716L, "Medium",
+4724L, "Medium", 4727L, "Medium", 4735L, "Medium", 4737L, "Medium",
+4739L, "Medium", 4754L, "Medium", 4755L, "Medium", 4764L, "Medium",
+4780L, "Medium", 4816L, "Medium", 4865L, "Medium", 4866L, "Medium",
+4867L, "Medium", 4868L, "Medium", 4870L, "Medium", 4882L, "Medium",
+4885L, "Medium", 4890L, "Medium", 4892L, "Medium", 4896L, "Medium",
+4906L, "Medium", 4907L, "Medium", 4908L, "Medium", 4912L, "Medium",
+4960L, "Medium", 4961L, "Medium", 4962L, "Medium", 4963L, "Medium",
+4965L, "Medium", 4976L, "Medium", 4977L, "Medium", 4978L, "Medium",
+4983L, "Medium", 4984L, "Medium", 5027L, "Medium", 5028L, "Medium",
+5029L, "Medium", 5030L, "Medium", 5035L, "Medium", 5037L, "Medium",
+5038L, "Medium", 5120L, "Medium", 5121L, "Medium", 5122L, "Medium",
+5123L, "Medium", 5376L, "Medium", 5377L, "Medium", 5453L, "Medium",
+5480L, "Medium", 5483L, "Medium", 5484L, "Medium", 5485L, "Medium",
+5827L, "Medium", 5828L, "Medium", 6145L, "Medium", 6273L, "Medium",
+6274L, "Medium", 6275L, "Medium", 6276L, "Medium", 6277L, "Medium",
+6278L, "Medium", 6279L, "Medium", 6280L, "Medium", 24586L, "Medium",
+24592L, "Medium", 24593L, "Medium", 24594L, "Medium"
+) %>%
+arrange(event_id)
+
+win_events_with_severity <- win_events %>%
+left_join(event_severity, by = "event_id") %>%
+mutate(severity = coalesce(severity, "Low"))
+
+win_events_with_severity
+```
+Посчитаем количество событий среднего/высокого уровня значимости, которые вообще присутствуют в логе:
+```{r}
+not_low_severity <- win_events_with_severity %>%
+filter(severity != "Low")
+
+not_low_severity %>%
+count()
+```
+По результатам выполнения видно, что в данном наборе логов **события уровней Medium/High отсутствуют** (или не встречаются `Event_ID`, перечисленные в справочнике критичности).
+
+
+## Вывод
+
+В ходе практической работы были закреплены навыки загрузки и предобработки SIEM-логов Active Directory в R, выполнено раскрытие вложенных структур, сокращение числа неинформативных признаков и базовый анализ событий Windows по `Event_ID`, включая проверку наличия событий повышенной значимости.
