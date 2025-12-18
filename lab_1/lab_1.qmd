@@ -69,7 +69,7 @@ format:
 Выполняем задания из курса
 
 Basic Building Blocks
-```
+```{r}
 | In this lesson, we will explore some basic building blocks of the R programming language.
 
 ...
@@ -416,7 +416,7 @@ Basic Building Blocks
 
 Workspace and Files
 
-```
+```{r}
 | In this lesson, you'll learn how to examine your local workspace in R and begin to explore
 | the relationship between your workspace and the file system of your machine.
 
@@ -752,7 +752,7 @@ mytest.R DESKTOP-EFV93V4
 2: No
 ```
 Sequences of Numbers
-```
+```{r}
 | In this lesson, you'll learn how to create sequences of numbers in R.
 
 ...
@@ -965,7 +965,7 @@ Sequences of Numbers
 2: Yes
 ```
 Vectors
-```
+```{r}
 | The simplest and most common data structure in R is the vector.
 
 ...
@@ -1273,7 +1273,7 @@ Vectors
 ```
 
 Missing Values
-```
+```{r}
 | Missing values play an important role in statistics and data analysis. Often, missing values
 | must not be ignored, but rather they should be carefully studied to see if there's an
 | underlying pattern or cause for their missingness.
