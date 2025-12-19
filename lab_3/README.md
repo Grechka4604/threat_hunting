@@ -49,76 +49,76 @@ sokol46532@yandex.ru
 
 Установим пакет nycflights13.
 
-    > install.packages("nycflights13")
-    WARNING: Rtools is required to build R packages but is not currently installed. Please download and install the appropriate version of Rtools before proceeding:
-
-    https://cran.rstudio.com/bin/windows/Rtools/
-    Устанавливаю пакет в ‘C:/Users/Ivan/AppData/Local/R/win-library/4.5’
-    (потому что ‘lib’ не определено)
-    пробую URL 'https://cran.rstudio.com/bin/windows/contrib/4.5/nycflights13_1.0.2.zip'
-    Content type 'application/zip' length 4511548 bytes (4.3 MB)
-    downloaded 4.3 MB
-
-    пакет ‘nycflights13’ успешно распакован, MD5-суммы проверены
-
-    Скачанные бинарные пакеты находятся в
-        C:\Users\Ivan\AppData\Local\Temp\RtmpKie1OU\downloaded_packages
-
 Подключим необходимые библиотеки
 
-    > library(nycflights13)
-    > library(dplyr)
+``` r
+library(nycflights13)
+library(dplyr)
+```
 
-    Присоединяю пакет: ‘dplyr’
 
-    Следующие объекты скрыты от ‘package:stats’:
+    Присоединяю пакет: 'dplyr'
+
+    Следующие объекты скрыты от 'package:stats':
 
         filter, lag
 
-    Следующие объекты скрыты от ‘package:base’:
+    Следующие объекты скрыты от 'package:base':
 
         intersect, setdiff, setequal, union
 
 Сколько встроенных в пакет nycflights13 датафреймов?
 
-    > nrow(data(package = "nycflights13")$results)
+``` r
+nrow(data(package = "nycflights13")$results)
+```
+
     [1] 5
 
 Сколько строк в каждом датафрейме?
 
-    > sapply(
-    +     list(
-    +         airlines = airlines,
-    +         airports = airports,
-    +         flights  = flights,
-    +         planes   = planes,
-    +         weather  = weather
-    +     ),
-    +     nrow
-    + )
+``` r
+sapply(
+list(
+airlines = airlines,
+airports = airports,
+flights  = flights,
+planes   = planes,
+weather  = weather
+),
+nrow
+)
+```
+
     airlines airports  flights   planes  weather 
           16     1458   336776     3322    26115 
 
 Сколько столбцов в каждом датафрейме?
 
-    > sapply(
-    +     list(
-    +         airlines = airlines,
-    +         airports = airports,
-    +         flights  = flights,
-    +         planes   = planes,
-    +         weather  = weather
-    +     ),
-    +     ncol
-    + )
+``` r
+sapply(
+list(
+airlines = airlines,
+airports = airports,
+flights  = flights,
+planes   = planes,
+weather  = weather
+),
+ncol
+)
+```
+
     airlines airports  flights   planes  weather 
            2        8       19        9       15 
 
 Как просмотреть примерный вид датафрейма?
 
-    > airlines %>%
-    +     as_tibble() %>%
-    +     head()
+``` r
+airlines %>%
+as_tibble() %>%
+head()
+```
+
     # A tibble: 6 × 2
       carrier name                    
       <chr>   <chr>                   
@@ -132,25 +132,34 @@ sokol46532@yandex.ru
 Сколько компаний-перевозчиков (carrier) учитывают эти наборы данных
 (представлено в наборах данных)?
 
-    > airlines %>%
-    +     summarise(unique_carriers = n_distinct(carrier)) %>%
-    +     pull(unique_carriers)
+``` r
+airlines %>%
+summarise(unique_carriers = n_distinct(carrier)) %>%
+pull(unique_carriers)
+```
+
     [1] 16
 
 Сколько рейсов принял аэропорт John F Kennedy Intl в мае?
 
-    > flights %>%
-    +     filter(dest == "JFK", month == 5) %>%
-    +     tally() %>%
-    +     pull(n)
+``` r
+flights %>%
+filter(dest == "JFK", month == 5) %>%
+tally() %>%
+pull(n)
+```
+
     [1] 0
 
 Какой самый северный аэропорт?
 
-    > airports %>%
-    +     filter(!is.na(lat)) %>%
-    +     slice_max(lat, n = 1, with_ties = FALSE) %>%
-    +     select(name, lat)
+``` r
+airports %>%
+filter(!is.na(lat)) %>%
+slice_max(lat, n = 1, with_ties = FALSE) %>%
+select(name, lat)
+```
+
     # A tibble: 1 × 2
       name                      lat
       <chr>                   <dbl>
@@ -159,10 +168,13 @@ sokol46532@yandex.ru
 Какой аэропорт самый высокогорный (находится выше всех над уровнем
 моря)?
 
-    > airports %>%
-    +     filter(!is.na(alt)) %>%
-    +     slice_max(alt, n = 1, with_ties = FALSE) %>%
-    +     select(name, alt)
+``` r
+airports %>%
+filter(!is.na(alt)) %>%
+slice_max(alt, n = 1, with_ties = FALSE) %>%
+select(name, alt)
+```
+
     # A tibble: 1 × 2
       name        alt
       <chr>     <dbl>
@@ -170,10 +182,13 @@ sokol46532@yandex.ru
 
 Какие бортовые номера у самых старых самолетов?
 
-    > planes %>%
-    +     filter(!is.na(year)) %>%
-    +     slice_min(year, n = 10, with_ties = TRUE) %>%
-    +     select(year, tailnum)
+``` r
+planes %>%
+filter(!is.na(year)) %>%
+slice_min(year, n = 10, with_ties = TRUE) %>%
+select(year, tailnum)
+```
+
     # A tibble: 10 × 2
         year tailnum
        <int> <chr>  
@@ -191,24 +206,30 @@ sokol46532@yandex.ru
 Какая средняя температура воздуха была в сентябре в аэропорту John
 FKennedy Intl (в градусах Цельсия).
 
-    > weather %>%
-    +     filter(origin == "JFK", month == 9) %>%
-    +     summarise(
-    +         mean_temp_c = (mean(temp, na.rm = TRUE) - 32) * 5 / 9
-    +     ) %>%
-    +     pull(mean_temp_c)
+``` r
+weather %>%
+filter(origin == "JFK", month == 9) %>%
+summarise(
+mean_temp_c = (mean(temp, na.rm = TRUE) - 32) * 5 / 9
+) %>%
+pull(mean_temp_c)
+```
+
     [1] 19.38764
 
 Самолеты какой авиакомпании совершили больше всего вылетов в июне?
 
-    > flights %>%
-    +     filter(month == 6) %>%
-    +     group_by(carrier) %>%
-    +     summarise(flights_count = n(), .groups = "drop") %>%
-    +     arrange(desc(flights_count)) %>%
-    +     slice_head(n = 1) %>%
-    +     left_join(airlines, by = "carrier") %>%
-    +     select(name, flights_count)
+``` r
+flights %>%
+filter(month == 6) %>%
+group_by(carrier) %>%
+summarise(flights_count = n(), .groups = "drop") %>%
+arrange(desc(flights_count)) %>%
+slice_head(n = 1) %>%
+left_join(airlines, by = "carrier") %>%
+select(name, flights_count)
+```
+
     # A tibble: 1 × 2
       name                  flights_count
       <chr>                         <int>
@@ -216,18 +237,21 @@ FKennedy Intl (в градусах Цельсия).
 
 Самолеты какой авиакомпании задерживались чаще других в 2013 году?
 
-    > flights %>%
-    +     filter(!is.na(dep_delay), !is.na(arr_delay)) %>%
-    +     mutate(delayed = dep_delay > 0 | arr_delay > 0) %>%
-    +     group_by(carrier) %>%
-    +     summarise(
-    +         delayed_flights = sum(delayed),
-    +         total_flights   = n(),
-    +         delay_ratio     = delayed_flights / total_flights,
-    +         .groups = "drop"
-    +     ) %>%
-    +     arrange(desc(delay_ratio)) %>%
-    +     left_join(airlines, by = "carrier")
+``` r
+flights %>%
+filter(!is.na(dep_delay), !is.na(arr_delay)) %>%
+mutate(delayed = dep_delay > 0 | arr_delay > 0) %>%
+group_by(carrier) %>%
+summarise(
+delayed_flights = sum(delayed),
+total_flights   = n(),
+delay_ratio     = delayed_flights / total_flights,
+.groups = "drop"
+) %>%
+arrange(desc(delay_ratio)) %>%
+left_join(airlines, by = "carrier")
+```
+
     # A tibble: 16 × 5
        carrier delayed_flights total_flights delay_ratio name                       
        <chr>             <int>         <int>       <dbl> <chr>                      
